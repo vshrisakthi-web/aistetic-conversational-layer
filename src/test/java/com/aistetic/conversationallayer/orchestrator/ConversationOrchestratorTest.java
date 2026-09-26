@@ -7,10 +7,13 @@ import com.aistetic.conversationallayer.dto.ConversationResponse;
 import com.aistetic.conversationallayer.service.ConversationContext;
 import com.aistetic.conversationallayer.service.IntentDetectionService;
 import com.aistetic.conversationallayer.service.ListingService;
+import com.aistetic.conversationallayer.service.PublishingService;
 import org.junit.jupiter.api.Test;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.List;
 
 class ConversationOrchestratorTest {
@@ -21,11 +24,16 @@ class ConversationOrchestratorTest {
     private final ListingService listingService =
             mock(ListingService.class);
 
+    private final PublishingService publishingService =
+            mock(PublishingService.class);
+
     private final ConversationOrchestrator orchestrator =
             new ConversationOrchestrator(
                     intentDetectionService,
-                    listingService
+                    listingService,
+                    publishingService
             );
+
     @Test
     void shouldMoveNewConversationToImageReceived() {
 
@@ -103,7 +111,9 @@ class ConversationOrchestratorTest {
         context.setCurrentState(
                 ConversationState.AWAITING_APPROVAL
         );
+
         context.setCurrentListingId(5L);
+
         Message message = new Message();
         message.setMessageType(MessageType.TEXT);
         message.setContent("yes");
@@ -120,6 +130,7 @@ class ConversationOrchestratorTest {
                 "Listing approved. Where would you like to publish?",
                 response.getMessage()
         );
+
         verify(listingService).approveListing(5L);
     }
 

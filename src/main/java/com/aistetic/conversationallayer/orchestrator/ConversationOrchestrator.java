@@ -1,24 +1,38 @@
 package com.aistetic.conversationallayer.orchestrator;
+
 import com.aistetic.conversationallayer.domain.ConversationState;
 import com.aistetic.conversationallayer.domain.IntentType;
 import com.aistetic.conversationallayer.domain.Message;
+import com.aistetic.conversationallayer.domain.Listing;
+import com.aistetic.conversationallayer.domain.Marketplace;
 import com.aistetic.conversationallayer.dto.ConversationResponse;
+import com.aistetic.conversationallayer.dto.MarketplacePublicationResult;
 import com.aistetic.conversationallayer.service.ConversationContext;
 import com.aistetic.conversationallayer.service.IntentDetectionService;
-import org.springframework.stereotype.Service;
 import com.aistetic.conversationallayer.service.ListingService;
+import com.aistetic.conversationallayer.service.PublishingService;
+import org.springframework.stereotype.Service;
+
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ConversationOrchestrator {
+
     private final IntentDetectionService intentDetectionService;
     private final ListingService listingService;
+    private final PublishingService publishingService;
+
     public ConversationOrchestrator(
-            IntentDetectionService intentDetectionService, ListingService listingService) {
+            IntentDetectionService intentDetectionService,
+            ListingService listingService,
+            PublishingService publishingService) {
 
         this.intentDetectionService = intentDetectionService;
         this.listingService = listingService;
+        this.publishingService = publishingService;
     }
+
     public ConversationResponse process(
             ConversationContext context,
             Message message) {
@@ -33,11 +47,17 @@ public class ConversationOrchestrator {
         IntentType intent = intentDetectionService.detectIntent(message);
         ConversationState currentState = context.getCurrentState();
 
+        // ============================================================
+        // NEW
+        // ============================================================
+
         if (currentState == ConversationState.NEW) {
 
             if (intent == IntentType.UPLOAD_IMAGE) {
 
-                context.setCurrentState(ConversationState.IMAGE_RECEIVED);
+                context.setCurrentState(
+                        ConversationState.IMAGE_RECEIVED
+                );
 
                 return new ConversationResponse(
                         ConversationState.IMAGE_RECEIVED,
@@ -59,15 +79,25 @@ public class ConversationOrchestrator {
             );
         }
 
+        // ============================================================
+        // IMAGE RECEIVED
+        // ============================================================
+
         if (currentState == ConversationState.IMAGE_RECEIVED) {
 
-            context.setCurrentState(ConversationState.PROCESSING);
+            context.setCurrentState(
+                    ConversationState.PROCESSING
+            );
 
             return new ConversationResponse(
                     ConversationState.PROCESSING,
                     "Processing your product image..."
             );
         }
+
+        // ============================================================
+        // PROCESSING
+        // ============================================================
 
         if (currentState == ConversationState.PROCESSING) {
 
@@ -77,15 +107,25 @@ public class ConversationOrchestrator {
             );
         }
 
+        // ============================================================
+        // LISTING READY
+        // ============================================================
+
         if (currentState == ConversationState.LISTING_READY) {
 
-            context.setCurrentState(ConversationState.AWAITING_APPROVAL);
+            context.setCurrentState(
+                    ConversationState.AWAITING_APPROVAL
+            );
 
             return new ConversationResponse(
                     ConversationState.AWAITING_APPROVAL,
                     "Your listing is ready. Approve this listing?"
             );
         }
+
+        // ============================================================
+        // AWAITING APPROVAL
+        // ============================================================
 
         if (currentState == ConversationState.AWAITING_APPROVAL) {
 
@@ -94,7 +134,10 @@ public class ConversationOrchestrator {
                 Long listingId = context.getCurrentListingId();
 
                 if (listingId == null) {
-                    context.setCurrentState(ConversationState.FAILED);
+
+                    context.setCurrentState(
+                            ConversationState.FAILED
+                    );
 
                     return new ConversationResponse(
                             ConversationState.FAILED,
@@ -131,6 +174,11 @@ public class ConversationOrchestrator {
                     "Please approve or reject the listing."
             );
         }
+
+        // ============================================================
+        // AWAITING MARKETPLACE
+        // ============================================================
+
         if (currentState == ConversationState.AWAITING_MARKETPLACE) {
 
             if (intent == IntentType.SELECT_MARKETPLACE) {
@@ -138,6 +186,7 @@ public class ConversationOrchestrator {
                 String content = message.getContent();
 
                 if (content == null) {
+
                     return new ConversationResponse(
                             ConversationState.AWAITING_MARKETPLACE,
                             "Please select a marketplace using 1, 2, 3, or 4."
@@ -146,24 +195,28 @@ public class ConversationOrchestrator {
 
                 content = content.trim();
 
+                // 1 = eBay
                 if (content.equals("1")) {
 
                     context.setSelectedMarketplaces(
                             List.of("EBAY")
                     );
 
+                    // 2 = Vinted
                 } else if (content.equals("2")) {
 
                     context.setSelectedMarketplaces(
                             List.of("VINTED")
                     );
 
+                    // 3 = Depop
                 } else if (content.equals("3")) {
 
                     context.setSelectedMarketplaces(
                             List.of("DEPOP")
                     );
 
+                    // 4 = All marketplaces
                 } else if (content.equals("4")) {
 
                     context.setSelectedMarketplaces(
@@ -198,13 +251,114 @@ public class ConversationOrchestrator {
             );
         }
 
+        // ============================================================
+        // PUBLISHING
+        // TASK 58
+        // ============================================================
+
         if (currentState == ConversationState.PUBLISHING) {
 
+            Long listingId = context.getCurrentListingId();
+
+            // --------------------------------------------------------
+            // Check whether a listing is associated with conversation
+            // --------------------------------------------------------
+
+            if (listingId == null) {
+
+                context.setCurrentState(
+                        ConversationState.FAILED
+                );
+
+                return new ConversationResponse(
+                        ConversationState.FAILED,
+                        "Unable to publish because no listing is associated with this conversation."
+                );
+            }
+
+            // --------------------------------------------------------
+            // Get the actual listing
+            // --------------------------------------------------------
+
+            Listing listing;
+
+            try {
+
+                listing = listingService.getListingById(listingId);
+
+            } catch (RuntimeException e) {
+
+                context.setCurrentState(
+                        ConversationState.FAILED
+                );
+
+                return new ConversationResponse(
+                        ConversationState.FAILED,
+                        "Unable to publish because the listing could not be found."
+                );
+            }
+
+            // --------------------------------------------------------
+            // Convert String marketplaces to Marketplace enum
+            // --------------------------------------------------------
+
+            List<Marketplace> marketplaces =
+                    context.getSelectedMarketplaces()
+                            .stream()
+                            .map(Marketplace::valueOf)
+                            .toList();
+
+            // --------------------------------------------------------
+            // Publish the listing
+            // --------------------------------------------------------
+
+            Map<Marketplace, MarketplacePublicationResult> results =
+                    publishingService.publishListing(
+                            listing,
+                            marketplaces
+                    );
+
+            // --------------------------------------------------------
+            // Check whether all marketplaces succeeded
+            // --------------------------------------------------------
+
+            boolean allSuccessful = results.values()
+                    .stream()
+                    .allMatch(MarketplacePublicationResult::success);
+
+            // --------------------------------------------------------
+            // Publishing successful
+            // --------------------------------------------------------
+
+            if (allSuccessful) {
+
+                context.setCurrentState(
+                        ConversationState.PUBLISHED
+                );
+
+                return new ConversationResponse(
+                        ConversationState.PUBLISHED,
+                        "All selected marketplaces published successfully."
+                );
+            }
+
+            // --------------------------------------------------------
+            // Publishing failed
+            // --------------------------------------------------------
+
+            context.setCurrentState(
+                    ConversationState.FAILED
+            );
+
             return new ConversationResponse(
-                    ConversationState.PUBLISHING,
-                    "Listing is ready to be published."
+                    ConversationState.FAILED,
+                    "Some marketplace publications failed."
             );
         }
+
+        // ============================================================
+        // PUBLISHED
+        // ============================================================
 
         if (currentState == ConversationState.PUBLISHED) {
 
@@ -214,6 +368,10 @@ public class ConversationOrchestrator {
             );
         }
 
+        // ============================================================
+        // FAILED
+        // ============================================================
+
         if (currentState == ConversationState.FAILED) {
 
             return new ConversationResponse(
@@ -222,12 +380,13 @@ public class ConversationOrchestrator {
             );
         }
 
+        // ============================================================
+        // DEFAULT
+        // ============================================================
+
         return new ConversationResponse(
                 currentState,
                 "I didn't understand that. Please try again."
         );
-
     }
-
-
 }

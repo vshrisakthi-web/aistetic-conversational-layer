@@ -76,4 +76,12 @@ public class ListingService {
 
         return listingRepository.save(listing);
     }
+
+    public Listing getListingById(Long listingId) {
+
+        return listingRepository.findById(listingId)
+                .orElseThrow(() ->
+                        new RuntimeException("Listing not found: " + listingId)
+                );
+    }
 }
