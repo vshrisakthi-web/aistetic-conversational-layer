@@ -64,4 +64,16 @@ public class ListingService {
         listingRepository.save(listing);
         return listingDraft;
     }
+
+    public Listing approveListing(Long listingId) {
+
+        Listing listing = listingRepository.findById(listingId)
+                .orElseThrow(() ->
+                        new RuntimeException("Listing not found: " + listingId)
+                );
+
+        listing.setStatus("APPROVED");
+
+        return listingRepository.save(listing);
+    }
 }

@@ -8,6 +8,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.time.LocalDateTime;
 import jakarta.persistence.Table;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 
 @Entity
 @Table(name = "messages")
@@ -21,9 +23,11 @@ public class Message {
     @JoinColumn(name = "conversation_id", nullable = false)
     private Conversation conversation;
 
-    private String sender;
+    @Enumerated(EnumType.STRING)
+    private SenderType sender;
 
-    private String messageType;
+    @Enumerated(EnumType.STRING)
+    private MessageType messageType;
 
     private String content;
 
@@ -48,19 +52,19 @@ public class Message {
         this.conversation = conversation;
     }
 
-    public String getSender() {
+    public SenderType getSender() {
         return sender;
     }
 
-    public void setSender(String sender) {
+    public void setSender(SenderType sender) {
         this.sender = sender;
     }
 
-    public String getMessageType() {
+    public MessageType getMessageType() {
         return messageType;
     }
 
-    public void setMessageType(String messageType) {
+    public void setMessageType(MessageType messageType) {
         this.messageType = messageType;
     }
 

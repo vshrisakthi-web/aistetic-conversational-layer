@@ -8,9 +8,14 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import java.time.LocalDateTime;
 import jakarta.persistence.Table;
-
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
+
 import java.util.List;
+
+
+
 
 @Entity
 @Table(name = "conversations")
@@ -25,8 +30,8 @@ public class Conversation {
 
     @OneToMany(mappedBy = "conversation")
     private List<Message> messages;
-
-    private String state;
+    @Enumerated(EnumType.STRING)
+    private ConversationState state;
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
@@ -50,11 +55,11 @@ public class Conversation {
         this.user = user;
     }
 
-    public String getState() {
+    public ConversationState getState() {
         return state;
     }
 
-    public void setState(String state) {
+    public void setState(ConversationState state) {
         this.state = state;
     }
 
