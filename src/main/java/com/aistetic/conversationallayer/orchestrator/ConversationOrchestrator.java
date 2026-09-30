@@ -7,6 +7,7 @@ import com.aistetic.conversationallayer.domain.Listing;
 import com.aistetic.conversationallayer.domain.Marketplace;
 import com.aistetic.conversationallayer.dto.ConversationResponse;
 import com.aistetic.conversationallayer.dto.MarketplacePublicationResult;
+import com.aistetic.conversationallayer.dto.ListingDraft;
 import com.aistetic.conversationallayer.service.ConversationContext;
 import com.aistetic.conversationallayer.service.IntentDetectionService;
 import com.aistetic.conversationallayer.service.ListingService;
@@ -89,10 +90,56 @@ public class ConversationOrchestrator {
                     ConversationState.PROCESSING
             );
 
-            return new ConversationResponse(
-                    ConversationState.PROCESSING,
-                    "Processing your product image..."
-            );
+            try {
+
+                String imageUrl = message.getContent();
+
+                ListingDraft listingDraft =
+                        listingService.generateListing(imageUrl);
+
+                if (listingDraft.getListingId() == null) {
+
+                    context.setCurrentState(
+                            ConversationState.FAILED
+                    );
+
+                    return new ConversationResponse(
+                            ConversationState.FAILED,
+                            "Unable to create the listing."
+                    );
+                }
+
+                context.setCurrentListingId(
+                        listingDraft.getListingId()
+                );
+
+                context.setCurrentState(
+                        ConversationState.AWAITING_APPROVAL
+                );
+
+                return new ConversationResponse(
+                        ConversationState.AWAITING_APPROVAL,
+                        "Your listing is ready. "
+                                + "Title: "
+                                + listingDraft.getTitle()
+                                + " | Price: ₹"
+                                + listingDraft.getPrice()
+                                + " | Condition: "
+                                + listingDraft.getCondition()
+                                + ". Approve this listing?"
+                );
+
+            } catch (Exception e) {
+
+                context.setCurrentState(
+                        ConversationState.FAILED
+                );
+
+                return new ConversationResponse(
+                        ConversationState.FAILED,
+                        "Unable to process the product image."
+                );
+            }
         }
 
         // ============================================================

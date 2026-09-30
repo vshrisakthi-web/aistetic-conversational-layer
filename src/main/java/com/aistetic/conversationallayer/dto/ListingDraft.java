@@ -9,6 +9,7 @@ public class ListingDraft {
     private String size;
     private String condition;
     private Integer price;
+    private Long listingId;
 
     public String getTitle() {
         return title;
@@ -74,6 +75,16 @@ public class ListingDraft {
         this.price = price;
     }
 
+    public Long getListingId() {
+        return listingId;
+    }
+
+    public void setListingId(Long listingId) {
+        this.listingId = listingId;
+    }
+
     public ListingDraft() {
     }
+
+
 }

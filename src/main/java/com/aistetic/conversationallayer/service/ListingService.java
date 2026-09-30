@@ -61,7 +61,11 @@ public class ListingService {
         );
 
         listing.setStatus("DRAFT");
-        listingRepository.save(listing);
+
+        listing = listingRepository.save(listing);
+
+        listingDraft.setListingId(listing.getId());
+
         return listingDraft;
     }
 
