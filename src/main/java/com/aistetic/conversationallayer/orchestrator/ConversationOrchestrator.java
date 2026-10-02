@@ -117,16 +117,19 @@ public class ConversationOrchestrator {
                         ConversationState.AWAITING_APPROVAL
                 );
 
+                String approvalMessage =
+                        "Your listing is ready.\n\n" +
+                                "Title: " + listingDraft.getTitle() + "\n" +
+                                "Color: " + listingDraft.getColor() + "\n" +
+                                "Size: " + listingDraft.getSize() + "\n" +
+                                "Price: ₹" + listingDraft.getPrice() + "\n" +
+                                "Condition: " + listingDraft.getCondition() + "\n\n" +
+                                "Approve this listing?\n\n" +
+                                "Reply with Yes or No.";
+
                 return new ConversationResponse(
                         ConversationState.AWAITING_APPROVAL,
-                        "Your listing is ready. "
-                                + "Title: "
-                                + listingDraft.getTitle()
-                                + " | Price: ₹"
-                                + listingDraft.getPrice()
-                                + " | Condition: "
-                                + listingDraft.getCondition()
-                                + ". Approve this listing?"
+                        approvalMessage
                 );
 
             } catch (Exception e) {
@@ -200,7 +203,13 @@ public class ConversationOrchestrator {
 
                 return new ConversationResponse(
                         ConversationState.AWAITING_MARKETPLACE,
-                        "Listing approved. Where would you like to publish?"
+                        "Listing approved.\n\n" +
+                                "Where would you like to publish?\n\n" +
+                                "1 - eBay\n" +
+                                "2 - Vinted\n" +
+                                "3 - Depop\n" +
+                                "4 - All marketplaces\n\n" +
+                                "Reply with 1, 2, 3, or 4."
                 );
             }
 
@@ -288,7 +297,9 @@ public class ConversationOrchestrator {
 
                 return new ConversationResponse(
                         ConversationState.PUBLISHING,
-                        "Marketplace selected. Ready to publish."
+                        "Marketplace selected.\n\n" +
+                                "Ready to publish?\n\n" +
+                                "Reply with Publish or Cancel."
                 );
             }
 
@@ -408,6 +419,18 @@ public class ConversationOrchestrator {
         // ============================================================
 
         if (currentState == ConversationState.PUBLISHED) {
+
+            if (intent == IntentType.UPLOAD_IMAGE) {
+
+                context.setCurrentState(
+                        ConversationState.IMAGE_RECEIVED
+                );
+
+                return new ConversationResponse(
+                        ConversationState.IMAGE_RECEIVED,
+                        "Image received."
+                );
+            }
 
             return new ConversationResponse(
                     ConversationState.PUBLISHED,

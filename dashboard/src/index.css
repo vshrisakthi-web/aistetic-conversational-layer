@@ -1,0 +1,64 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f5f6f8;
+  color: #1f2937;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1 {
+  margin-bottom: 8px;
+}
+
+p {
+  color: #6b7280;
+}
+
+.listing-table-container {
+  margin-top: 24px;
+  overflow-x: auto;
+}
+
+.listing-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.listing-table th,
+.listing-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.listing-table th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.listing-table tr:hover {
+  background: #f9fafb;
+}
+
+.status {
+  font-weight: 600;
+}
+
+.marketplace-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.marketplace {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #eef2ff;
+  font-size: 13px;
+}

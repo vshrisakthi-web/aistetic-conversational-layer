@@ -8,6 +8,14 @@ import java.math.BigDecimal;
 import com.aistetic.conversationallayer.repository.UserRepository;
 import com.aistetic.conversationallayer.domain.User;
 
+import com.aistetic.conversationallayer.dto.ListingDetailsResponse;
+import com.aistetic.conversationallayer.dto.MarketplacePublicationResponse;
+import com.aistetic.conversationallayer.domain.MarketplacePublication;
+import java.util.List;
+import java.util.stream.Collectors;
+import com.aistetic.conversationallayer.dto.DashboardKpiResponse;
+
+
 @Service
 public class ListingService {
 
@@ -87,5 +95,61 @@ public class ListingService {
                 .orElseThrow(() ->
                         new RuntimeException("Listing not found: " + listingId)
                 );
+    }
+
+    public ListingDetailsResponse getListingDetailsById(Long listingId) {
+
+        Listing listing = listingRepository.findById(listingId)
+                .orElseThrow(() ->
+                        new RuntimeException("Listing not found: " + listingId)
+                );
+
+        List<MarketplacePublicationResponse> publications =
+                listing.getMarketplacePublications()
+                        .stream()
+                        .map(publication ->
+                                new MarketplacePublicationResponse(
+                                        publication.getMarketplace(),
+                                        publication.getStatus(),
+                                        publication.getExternalListingId()
+                                )
+                        )
+                        .collect(Collectors.toList());
+
+        return new ListingDetailsResponse(
+                listing.getId(),
+                listing.getTitle(),
+                listing.getDescription(),
+                listing.getBrand(),
+                listing.getCategory(),
+                listing.getColor(),
+                listing.getSize(),
+                listing.getCondition(),
+                listing.getPrice(),
+                listing.getStatus(),
+                listing.getImageUrl(),
+                publications
+        );
+    }
+    public DashboardKpiResponse getDashboardKpis() {
+
+        long totalListings =
+                listingRepository.count();
+
+        long draftListings =
+                listingRepository.countByStatus("DRAFT");
+
+        long approvedListings =
+                listingRepository.countByStatus("APPROVED");
+
+        long publishedListings =
+                listingRepository.countByStatus("PUBLISHED");
+
+        return new DashboardKpiResponse(
+                totalListings,
+                draftListings,
+                approvedListings,
+                publishedListings
+        );
     }
 }

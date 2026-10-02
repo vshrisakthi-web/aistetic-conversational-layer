@@ -12,6 +12,9 @@ import com.aistetic.conversationallayer.service.WhatsAppMessageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.aistetic.conversationallayer.domain.Conversation;
+import com.aistetic.conversationallayer.domain.User;
+import com.aistetic.conversationallayer.service.ConversationPersistenceService;
 
 import java.util.List;
 import java.util.Map;
@@ -26,14 +29,18 @@ public class WhatsAppWebhookController {
     private final ConversationOrchestrator orchestrator;
     private final ConversationContextStore contextStore;
     private final WhatsAppMessageService whatsappMessageService;
+    private final ConversationPersistenceService persistenceService;
 
     public WhatsAppWebhookController(
             ConversationOrchestrator orchestrator,
-            ConversationContextStore contextStore, WhatsAppMessageService whatsappMessageService) {
+            ConversationContextStore contextStore,
+            WhatsAppMessageService whatsappMessageService,
+            ConversationPersistenceService persistenceService) {
 
         this.orchestrator = orchestrator;
         this.contextStore = contextStore;
         this.whatsappMessageService = whatsappMessageService;
+        this.persistenceService = persistenceService;
     }
 
     @GetMapping
@@ -129,12 +136,19 @@ public class WhatsAppWebhookController {
             // 7. Create conversation context
             // ---------------------------------------------------------
 
-            Long conversationId = Long.parseLong(waId);
+            Long whatsappUserId = Long.parseLong(waId);
 
             ConversationContext context =
-                    contextStore.getOrCreate(conversationId);
+                    contextStore.getOrCreate(whatsappUserId);
 
-            context.setUserId(conversationId);
+            User user =
+                    persistenceService.getOrCreateUser(waId);
+
+            Conversation conversation =
+                    persistenceService.getOrCreateConversation(user);
+
+            context.setConversationId(conversation.getId());
+            context.setUserId(user.getId());
 
             // ---------------------------------------------------------
             // 8. Create Message object
@@ -198,6 +212,12 @@ public class WhatsAppWebhookController {
 
                 return ResponseEntity.ok("EVENT_RECEIVED");
             }
+            persistenceService.saveIncomingMessage(
+                    conversation,
+                    message.getSender(),
+                    message.getMessageType(),
+                    message.getContent()
+            );
 
             // ---------------------------------------------------------
             // 12. Send message to ConversationOrchestrator
@@ -225,7 +245,10 @@ public class WhatsAppWebhookController {
             // ---------------------------------------------------------
             // 13. Print orchestrator response
             // ---------------------------------------------------------
-
+            persistenceService.updateConversationState(
+                    conversation,
+                    response.getState()
+            );
             System.out.println(
                     "Conversation state: "
                             + response.getState()
@@ -236,10 +259,14 @@ public class WhatsAppWebhookController {
                             + response.getMessage()
             );
 
+
             // ---------------------------------------------------------
             // 14. Send response back to WhatsApp
             // ---------------------------------------------------------
-
+            persistenceService.saveOutgoingMessage(
+                    conversation,
+                    response.getMessage()
+            );
             whatsappMessageService.sendTextMessage(
                     waId,
                     response.getMessage()
