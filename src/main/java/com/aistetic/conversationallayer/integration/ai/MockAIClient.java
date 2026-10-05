@@ -3,11 +3,16 @@ import com.aistetic.conversationallayer.dto.ListingDraft;
 import com.aistetic.conversationallayer.dto.ProductAnalysis;
 
 import org.springframework.stereotype.Component;
+import com.aistetic.conversationallayer.exception.AIServiceException;
+
 
 @Component
 public class MockAIClient implements AIClient {
     @Override
     public ProductAnalysis analyzeImage(String imageUrl) {
+        if (imageUrl != null && imageUrl.contains("fail-ai")) {
+            throw new AIServiceException("AI service unavailable");
+        }
 
         ProductAnalysis productAnalysis = new ProductAnalysis();
 

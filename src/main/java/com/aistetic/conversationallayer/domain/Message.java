@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import jakarta.persistence.Table;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.Column;
 
 @Entity
 @Table(name = "messages")
@@ -30,6 +31,9 @@ public class Message {
     private MessageType messageType;
 
     private String content;
+
+    @Column(name = "whatsapp_message_id", unique = true)
+    private String whatsappMessageId;
 
     private LocalDateTime createdAt;
 
@@ -76,6 +80,14 @@ public class Message {
         this.content = content;
     }
 
+    public String getWhatsappMessageId() {
+        return whatsappMessageId;
+    }
+
+    public void setWhatsappMessageId(String whatsappMessageId) {
+        this.whatsappMessageId = whatsappMessageId;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -83,6 +95,4 @@ public class Message {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
-
-
 }

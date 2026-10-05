@@ -15,6 +15,9 @@ import static org.mockito.Mockito.verify;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
+import com.aistetic.conversationallayer.dto.ListingDraft;
+
+import static org.mockito.Mockito.when;
 
 class ConversationOrchestratorTest {
 
@@ -58,7 +61,13 @@ class ConversationOrchestratorTest {
     }
 
     @Test
-    void shouldMoveImageReceivedToProcessing() {
+    void shouldProcessImageAndMoveToAwaitingApproval() {
+
+        ListingDraft listingDraft = new ListingDraft();
+        listingDraft.setListingId(1L);
+
+        when(listingService.generateListing("image-url"))
+                .thenReturn(listingDraft);
 
         ConversationContext context =
                 new ConversationContext();
@@ -69,12 +78,13 @@ class ConversationOrchestratorTest {
 
         Message message = new Message();
         message.setMessageType(MessageType.IMAGE);
+        message.setContent("image-url");
 
         ConversationResponse response =
                 orchestrator.process(context, message);
 
         assertEquals(
-                ConversationState.PROCESSING,
+                ConversationState.AWAITING_APPROVAL,
                 response.getState()
         );
     }
@@ -127,7 +137,13 @@ class ConversationOrchestratorTest {
         );
 
         assertEquals(
-                "Listing approved. Where would you like to publish?",
+                "Listing approved.\n\n" +
+                        "Where would you like to publish?\n\n" +
+                        "1 - eBay\n" +
+                        "2 - Vinted\n" +
+                        "3 - Depop\n" +
+                        "4 - All marketplaces\n\n" +
+                        "Reply with 1, 2, 3, or 4.",
                 response.getMessage()
         );
 

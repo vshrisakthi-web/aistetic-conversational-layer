@@ -13,9 +13,15 @@ import com.aistetic.conversationallayer.dto.ConversationActivity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
-
+@Tag(
+        name = "Conversations",
+        description = "Conversation processing and activity endpoints"
+)
 @RestController
 @CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/conversations")
@@ -37,9 +43,13 @@ public class ConversationController {
                 conversationActivityService;
     }
 
+    @Operation(
+            summary = "Process conversation message",
+            description = "Processes a message through the conversation orchestrator."
+    )
     @PostMapping("/message")
     public ConversationResponse processMessage(
-            @RequestBody ConversationMessageRequest request) {
+            @Valid @RequestBody ConversationMessageRequest request) {
 
         ConversationContext context =
                 contextStore.getOrCreate(
@@ -48,15 +58,10 @@ public class ConversationController {
 
         Message message = new Message();
 
-        MessageType messageType;
-
-        try {
-            messageType = MessageType.valueOf(
-                    request.getMessageType().toUpperCase()
-            );
-        } catch (Exception e) {
-            messageType = MessageType.TEXT;
-        }
+        MessageType messageType =
+                MessageType.valueOf(
+                        request.getMessageType().toUpperCase()
+                );
 
         message.setMessageType(messageType);
         message.setContent(request.getMessage());
@@ -66,6 +71,10 @@ public class ConversationController {
                 message
         );
     }
+    @Operation(
+            summary = "Get conversation activity",
+            description = "Returns the activity history for a conversation."
+    )
     @GetMapping("/{conversationId}/messages")
     public List<ConversationActivity> getConversationActivity(
             @PathVariable Long conversationId) {

@@ -10,12 +10,18 @@ import com.aistetic.conversationallayer.repository.ConversationRepository;
 import com.aistetic.conversationallayer.repository.MessageRepository;
 import com.aistetic.conversationallayer.repository.UserRepository;
 import org.springframework.stereotype.Service;
-import java.util.List;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ConversationPersistenceService {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(ConversationPersistenceService.class);
 
     private final UserRepository userRepository;
     private final ConversationRepository conversationRepository;
@@ -64,11 +70,39 @@ public class ConversationPersistenceService {
                 });
     }
 
+    // ---------------------------------------------------------
+    // Check whether WhatsApp message was already processed
+    // ---------------------------------------------------------
+
+    public boolean messageAlreadyProcessed(String whatsappMessageId) {
+
+        if (whatsappMessageId == null || whatsappMessageId.isBlank()) {
+            return false;
+        }
+
+        boolean exists =
+                messageRepository.existsByWhatsappMessageId(
+                        whatsappMessageId
+                );
+
+        logger.debug(
+                "Checked WhatsApp message idempotency. exists={}",
+                exists
+        );
+
+        return exists;
+    }
+
+    // ---------------------------------------------------------
+    // Save incoming WhatsApp message
+    // ---------------------------------------------------------
+
     public Message saveIncomingMessage(
             Conversation conversation,
             SenderType sender,
             MessageType messageType,
-            String content) {
+            String content,
+            String whatsappMessageId) {
 
         Message message = new Message();
 
@@ -76,16 +110,44 @@ public class ConversationPersistenceService {
         message.setSender(sender);
         message.setMessageType(messageType);
         message.setContent(content);
+        message.setWhatsappMessageId(whatsappMessageId);
         message.setCreatedAt(LocalDateTime.now());
 
-
+        logger.info(
+                "Saving incoming message. type={}",
+                messageType
+        );
 
         return saveMessage(message, conversation);
     }
 
+    // ---------------------------------------------------------
+    // Backward-compatible method
+    // ---------------------------------------------------------
+
+    public Message saveIncomingMessage(
+            Conversation conversation,
+            SenderType sender,
+            MessageType messageType,
+            String content) {
+
+        return saveIncomingMessage(
+                conversation,
+                sender,
+                messageType,
+                content,
+                null
+        );
+    }
+
+    // ---------------------------------------------------------
+    // Save outgoing message
+    // ---------------------------------------------------------
+
     public Message saveOutgoingMessage(
             Conversation conversation,
             String content) {
+        logger.info("Saving outgoing system message");
 
         Message message = new Message();
 
@@ -98,15 +160,28 @@ public class ConversationPersistenceService {
         return saveMessage(message, conversation);
     }
 
+    // ---------------------------------------------------------
+    // Update conversation state
+    // ---------------------------------------------------------
+
     public void updateConversationState(
             Conversation conversation,
             ConversationState state) {
+        logger.info(
+                "Updating conversation state. conversationId={}, newState={}",
+                conversation.getId(),
+                state
+        );
 
         conversation.setState(state);
         conversation.setUpdatedAt(LocalDateTime.now());
 
         conversationRepository.save(conversation);
     }
+
+    // ---------------------------------------------------------
+    // Common message save method
+    // ---------------------------------------------------------
 
     private Message saveMessage(
             Message message,
@@ -118,6 +193,11 @@ public class ConversationPersistenceService {
 
         return messageRepository.save(message);
     }
+
+    // ---------------------------------------------------------
+    // Get conversation messages
+    // ---------------------------------------------------------
+
     public List<Message> getMessagesForConversation(
             Conversation conversation) {
 

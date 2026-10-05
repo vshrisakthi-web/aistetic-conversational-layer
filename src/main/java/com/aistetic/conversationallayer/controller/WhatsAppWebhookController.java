@@ -15,6 +15,11 @@ import org.springframework.web.bind.annotation.*;
 import com.aistetic.conversationallayer.domain.Conversation;
 import com.aistetic.conversationallayer.domain.User;
 import com.aistetic.conversationallayer.service.ConversationPersistenceService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
+import java.util.UUID;
 
 import java.util.List;
 import java.util.Map;
@@ -22,6 +27,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/webhooks/whatsapp")
 public class WhatsAppWebhookController {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(WhatsAppWebhookController.class);
 
     @Value("${whatsapp.verify-token}")
     private String verifyToken;
@@ -60,8 +68,18 @@ public class WhatsAppWebhookController {
     public ResponseEntity<String> receiveWhatsAppWebhook(
             @RequestBody Map<String, Object> payload) {
 
-        System.out.println("WhatsApp webhook received:");
-        System.out.println(payload);
+        String correlationId = "CORR-" +
+                UUID.randomUUID()
+                        .toString()
+                        .substring(0, 8)
+                        .toUpperCase();
+
+        MDC.put("correlationId", correlationId);
+
+        logger.info(
+                "WhatsApp webhook received. correlationId={}",
+                correlationId
+        );
 
         try {
 
@@ -113,27 +131,65 @@ public class WhatsAppWebhookController {
                     (Map<?, ?>) messages.get(0);
 
             // ---------------------------------------------------------
-            // 5. Extract sender
+            // 5. Extract WhatsApp message ID
+            // ---------------------------------------------------------
+
+            String whatsappMessageId =
+                    String.valueOf(whatsappMessage.get("id"));
+
+            logger.info(
+                    "WhatsApp message received with messageId={}",
+                    whatsappMessageId
+            );
+
+        // ---------------------------------------------------------
+        // 6. Prevent duplicate webhook processing
+        // ---------------------------------------------------------
+
+            if (whatsappMessageId == null
+                    || "null".equals(whatsappMessageId)
+                    || whatsappMessageId.isBlank()) {
+
+                System.out.println(
+                        "WhatsApp message ID is missing."
+                );
+
+            } else if (
+                    persistenceService.messageAlreadyProcessed(
+                            whatsappMessageId
+                    )
+            ) {
+
+                logger.info(
+                        "Duplicate WhatsApp message ignored. messageId={}",
+                        whatsappMessageId
+                );
+
+                return ResponseEntity.ok("EVENT_RECEIVED");
+            }
+
+            // ---------------------------------------------------------
+            // 7. Extract sender
             // ---------------------------------------------------------
 
             String waId = String.valueOf(
                     whatsappMessage.get("from")
             );
 
-            System.out.println("WhatsApp sender: " + waId);
+            logger.info("WhatsApp message received from sender");
 
             // ---------------------------------------------------------
-            // 6. Extract message type
+            // 8. Extract message type
             // ---------------------------------------------------------
 
             String type = String.valueOf(
                     whatsappMessage.get("type")
             );
 
-            System.out.println("WhatsApp message type: " + type);
+            logger.info("WhatsApp message type={}", type);
 
             // ---------------------------------------------------------
-            // 7. Create conversation context
+            // 9. Create conversation context
             // ---------------------------------------------------------
 
             Long whatsappUserId = Long.parseLong(waId);
@@ -150,8 +206,14 @@ public class WhatsAppWebhookController {
             context.setConversationId(conversation.getId());
             context.setUserId(user.getId());
 
+            logger.info(
+                    "Conversation loaded. conversationId={}, state={}",
+                    conversation.getId(),
+                    conversation.getState()
+            );
+
             // ---------------------------------------------------------
-            // 8. Create Message object
+            // 10. Create Message object
             // ---------------------------------------------------------
 
             Message message = new Message();
@@ -174,9 +236,7 @@ public class WhatsAppWebhookController {
                 message.setMessageType(MessageType.TEXT);
                 message.setContent(content);
 
-                System.out.println(
-                        "WhatsApp text: " + content
-                );
+                logger.info("WhatsApp text message received");
             }
 
             // ---------------------------------------------------------
@@ -195,9 +255,7 @@ public class WhatsAppWebhookController {
                 message.setMessageType(MessageType.IMAGE);
                 message.setContent(mediaId);
 
-                System.out.println(
-                        "WhatsApp image media ID: " + mediaId
-                );
+                logger.info("WhatsApp image message received");
             }
 
             // ---------------------------------------------------------
@@ -206,8 +264,9 @@ public class WhatsAppWebhookController {
 
             else {
 
-                System.out.println(
-                        "Unsupported WhatsApp message type: " + type
+                logger.warn(
+                        "Unsupported WhatsApp message type={}",
+                        type
                 );
 
                 return ResponseEntity.ok("EVENT_RECEIVED");
@@ -216,7 +275,8 @@ public class WhatsAppWebhookController {
                     conversation,
                     message.getSender(),
                     message.getMessageType(),
-                    message.getContent()
+                    message.getContent(),
+                    whatsappMessageId
             );
 
             // ---------------------------------------------------------
@@ -249,14 +309,14 @@ public class WhatsAppWebhookController {
                     conversation,
                     response.getState()
             );
-            System.out.println(
-                    "Conversation state: "
-                            + response.getState()
+            logger.info(
+                    "Conversation state changed to {}",
+                    response.getState()
             );
 
-            System.out.println(
-                    "Conversation response: "
-                            + response.getMessage()
+            logger.info(
+                    "Conversation response generated. state={}",
+                    response.getState()
             );
 
 
@@ -274,11 +334,14 @@ public class WhatsAppWebhookController {
 
         } catch (Exception e) {
 
-            System.out.println(
-                    "Error processing WhatsApp webhook:"
+            logger.error(
+                    "Error processing WhatsApp webhook",
+                    e
             );
 
-            e.printStackTrace();
+        } finally {
+
+            MDC.remove("correlationId");
         }
 
         return ResponseEntity.ok("EVENT_RECEIVED");

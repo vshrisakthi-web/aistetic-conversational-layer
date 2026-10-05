@@ -13,12 +13,18 @@ import com.aistetic.conversationallayer.service.IntentDetectionService;
 import com.aistetic.conversationallayer.service.ListingService;
 import com.aistetic.conversationallayer.service.PublishingService;
 import org.springframework.stereotype.Service;
+import com.aistetic.conversationallayer.exception.AIServiceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class ConversationOrchestrator {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(ConversationOrchestrator.class);
 
     private final IntentDetectionService intentDetectionService;
     private final ListingService listingService;
@@ -47,6 +53,12 @@ public class ConversationOrchestrator {
 
         IntentType intent = intentDetectionService.detectIntent(message);
         ConversationState currentState = context.getCurrentState();
+
+        logger.info(
+                "Processing conversation. state={}, intent={}",
+                currentState,
+                intent
+        );
 
         // ============================================================
         // NEW
@@ -97,6 +109,11 @@ public class ConversationOrchestrator {
                 ListingDraft listingDraft =
                         listingService.generateListing(imageUrl);
 
+                logger.info(
+                        "Listing generation completed. listingId={}",
+                        listingDraft.getListingId()
+                );
+
                 if (listingDraft.getListingId() == null) {
 
                     context.setCurrentState(
@@ -132,6 +149,17 @@ public class ConversationOrchestrator {
                         approvalMessage
                 );
 
+            } catch (AIServiceException e) {
+
+                context.setCurrentState(
+                        ConversationState.FAILED
+                );
+
+                return new ConversationResponse(
+                        ConversationState.FAILED,
+                        "I couldn't analyze the product right now. Please try again."
+                );
+
             } catch (Exception e) {
 
                 context.setCurrentState(
@@ -143,6 +171,7 @@ public class ConversationOrchestrator {
                         "Unable to process the product image."
                 );
             }
+
         }
 
         // ============================================================
@@ -376,6 +405,12 @@ public class ConversationOrchestrator {
                             marketplaces
                     );
 
+            logger.info(
+                    "Publishing completed. listingId={}, marketplaces={}",
+                    listingId,
+                    marketplaces
+            );
+
             // --------------------------------------------------------
             // Check whether all marketplaces succeeded
             // --------------------------------------------------------
@@ -389,6 +424,12 @@ public class ConversationOrchestrator {
             // --------------------------------------------------------
 
             if (allSuccessful) {
+
+                logger.info(
+                        "Listing published successfully. listingId={}, marketplaces={}",
+                        listingId,
+                        marketplaces
+                );
 
                 context.setCurrentState(
                         ConversationState.PUBLISHED
@@ -406,6 +447,12 @@ public class ConversationOrchestrator {
 
             context.setCurrentState(
                     ConversationState.FAILED
+            );
+
+            logger.error(
+                    "Listing publishing failed. listingId={}, marketplaces={}",
+                    listingId,
+                    marketplaces
             );
 
             return new ConversationResponse(
